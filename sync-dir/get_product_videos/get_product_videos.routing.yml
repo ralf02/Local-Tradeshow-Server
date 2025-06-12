@@ -1,0 +1,7 @@
+get_product_videos.welcome:
+  path: '/welcome/page'
+  defaults:
+    _controller: '\Drupal\get_product_videos\Controller\WelcomeController::welcome'
+    _title: 'Welcome to Get Product Videos'
+  requirements:
+    _permission: 'access content'

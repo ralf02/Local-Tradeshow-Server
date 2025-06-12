@@ -1,0 +1,24 @@
+FROM debian:10
+RUN apt-get update && apt-get install -y  vim wget lftp curl
+
+# Install mysql-client
+RUN apt-get update && apt-get install -y mariadb-client
+
+# Install PHP
+RUN apt install -y php php-bcmath php-bz2 php-curl php-dev php-enchant php-gd php-gmp php-imap php-interbase php-intl php-json php-ldap php-mbstring php-mysql php-odbc php-pgsql php-pspell php-readline php-recode php-snmp php-soap php-sqlite3 php-sybase php-tidy php-xml php-xmlrpc php-zip unzip
+
+# Install Composer
+RUN curl -sS https://getcomposer.org/installer | php && mv composer.phar /usr/local/bin/composer
+
+# Install Drush
+RUN composer global require drush/drush:8.x && ln -s /root/.config/composer/vendor/drush/drush/drush /usr/bin/drush
+
+# Install aws-cli
+RUN apt-get update && apt-get install -y python python-pip
+RUN pip install awscli
+
+# youtube-dl - download videos from youtube.com or other video platforms
+RUN curl -L https://yt-dl.org/downloads/latest/youtube-dl -o /usr/local/bin/youtube-dl
+RUN chmod a+rx /usr/local/bin/youtube-dl
+
+RUN mkdir -p sync-dir/tmp

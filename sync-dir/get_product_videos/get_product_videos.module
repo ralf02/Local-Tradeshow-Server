@@ -1,0 +1,6 @@
+<?php
+
+function get_product_videos_page_attachments(array &$page)
+{
+    $page['#attached']['library'][] = 'get_product_videos/get_product_videos-libraries';
+}

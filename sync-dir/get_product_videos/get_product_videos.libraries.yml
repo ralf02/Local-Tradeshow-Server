@@ -1,0 +1,9 @@
+get_product_videos-libraries:
+  version: 1.1
+  css:
+    component:
+      css/get_product_videos.css: {}
+  js:
+    js/get_product_videos.js: {}
+  dependencies:
+    - core/jquery

@@ -1,0 +1,352 @@
+<?php
+
+use Drupal\Core\Database\Database;
+
+/**
+ * Implements hook_install().
+ */
+function get_product_videos_install()
+{
+    product_videos_table();
+    setVideos();
+}
+
+/**
+ * Implements hook_uninstall().
+ */
+function get_product_videos_uninstall()
+{
+    $table = 'product_videos';
+    $schema = Database::getConnection()->schema();
+    $schema->dropTable($table);
+}
+
+function product_videos_table()
+{
+    $table = array(
+        'fields' => array(
+          'id' => array(
+            'type' => 'serial',
+            'unsigned' => true,
+            'not null' => true
+        ),
+          'nid' => array(
+            'type' => 'varchar',
+            'length' => 255,
+            'not null' => true
+        ),
+          'name' => array(
+            'type' => 'varchar',
+            'length' => 255,
+            'not null' => true
+        ),
+          'file_id' => array(
+            'type' => 'varchar',
+            'length' => 255,
+            'not null' => true,
+        ),
+          'content_type' => array(
+            'type' => 'varchar',
+            'length' => 255,
+            'not null' => true,
+        ),
+          'file_type' => array(
+            'type' => 'varchar',
+            'length' => 255,
+            'not null' => true,
+        )
+    ),
+        'primary key' => array('id'),
+    );
+
+    $schema = Database::getConnection()->schema();
+    $schema->createTable('product_videos', $table);
+}
+
+function setVideos()
+{
+
+    $table = 'product_videos';
+    $db = \Drupal::database();
+    $db->truncate($table)->execute();
+
+    $contentType = 'product';
+    $nids = \Drupal::entityQuery('node')->condition('type', $contentType)->execute();
+    $nodes =  \Drupal\node\Entity\Node::loadMultiple($nids);
+    $pattern = '/&t=(\d{1,6})s/i';
+
+    foreach ($nodes as $node) {
+        $heroProduct = $node->field_hero_products->target_id;
+
+        if (isset($heroProduct) && !empty($heroProduct)) {
+            $p = \Drupal\paragraphs\Entity\Paragraph::load($heroProduct);
+            $remoteVideo = $p->field_hero_remote_video->target_id;
+
+            if (isset($remoteVideo) && !empty($remoteVideo)) {
+                $mediaEntityLoad = \Drupal\media\Entity\Media::load($remoteVideo);
+                $videoId = $mediaEntityLoad->field_media_oembed_video->value;
+                $srtVideoId = str_replace(array('https://www.youtube.com/watch?v=','https://youtu.be/','https://www.youtube.com/','https://youtube.com/'), '', $videoId);
+                $srtVideoId = preg_replace($pattern, '', $srtVideoId);
+
+                if (isset($videoId) && !empty($videoId)) {
+                    $db->insert($table)->fields(
+                        array(
+                            'nid' => $remoteVideo,
+                            'name' => $videoId,
+                            'file_id' => $srtVideoId,
+                            'content_type' => $contentType,
+                            'file_type' => 'video',
+                        )
+                    )->execute();
+                }
+            }
+        }
+    }
+
+    $contentType = 'videos_by_model';
+    $nids = \Drupal::entityQuery('node')->condition('type', $contentType)->execute();
+    $nodes =  \Drupal\node\Entity\Node::loadMultiple($nids);
+
+    foreach ($nodes as $node) {
+        $fieldVideoByModelId = $node->field_videobymodel->target_id;
+        $mediaEntityLoad = \Drupal\media\Entity\Media::load($fieldVideoByModelId);
+
+        $videoId = $mediaEntityLoad->field_media_oembed_video->value;
+        $videoId = explode('&', $videoId);
+        $videoId = $videoId[0];
+        $srtVideoId = str_replace(array('https://www.youtube.com/watch?v=','https://youtu.be/','https://www.youtube.com/','https://youtube.com/'), '', $videoId);
+        $srtVideoId = preg_replace($pattern, '', $srtVideoId);
+
+        if (isset($videoId) && !empty($videoId)) {
+            $db->insert($table)->fields(
+                array(
+                    'nid' => $fieldVideoByModelId,
+                    'name' => $videoId,
+                    'file_id' => $srtVideoId,
+                    'content_type' => $contentType,
+                    'file_type' => 'video',
+                )
+            )->execute();
+        }
+    }
+
+    $contentType = 'document_macdon';
+    $nids = \Drupal::entityQuery('node')->condition('type', $contentType)->execute();
+    $nodes =  \Drupal\node\Entity\Node::loadMultiple($nids);
+
+    foreach ($nodes as $node) {
+        $fielId = $node->field_file->target_id;
+        $mediaEntityLoad = \Drupal\media\Entity\Media::load($fielId);
+        $videoId = $mediaEntityLoad->field_media_oembed_video->value;
+        $videoId = explode('&', $videoId);
+        $videoId = $videoId[0];
+
+        $srtVideoId = str_replace(array('https://www.youtube.com/watch?v=','https://youtu.be/','https://www.youtube.com/','https://youtube.com/'), '', $videoId);
+        $srtVideoId = preg_replace($pattern, '', $srtVideoId);
+
+        if (isset($videoId) && !empty($videoId)) {
+            $db->insert($table)->fields(
+                array(
+                    'nid' => $fieldVideoByModelId,
+                    'name' => $videoId,
+                    'file_id' => $srtVideoId,
+                    'content_type' => $contentType,
+                    'file_type' => 'video',
+                )
+            )->execute();
+        }
+    }
+
+    $contentType = 'product';
+    $nids = \Drupal::entityQuery('node')->condition('type', $contentType)->execute();
+    $nodes =  \Drupal\node\Entity\Node::loadMultiple($nids);
+
+    foreach ($nodes as $node) {
+        $layout = $node->get('layout_builder__layout')->getValue();
+
+        foreach ($layout as $item) {
+            $section = $item['section'];
+            $section_array = $section->toArray();
+            foreach ($section_array["components"] as $component) {
+                // This ID will correspond to the ID we have in the plugin. For example,
+                // the page title block has an ID of "page_title_block".
+                $id = $component["configuration"]["id"];
+
+                if ($id == 'inline_block:product_hero_fd2') {
+                    $revisionId = $component["configuration"]["block_revision_id"];
+                    $c = \Drupal::entityTypeManager()->getStorage('block_content')->loadRevision($revisionId);
+
+                    $p = \Drupal\paragraphs\Entity\Paragraph::load($c->field_product_hero_fd2->target_id);
+                    $p2 = \Drupal\paragraphs\Entity\Paragraph::load($p->field_hero_fd2_pgh->target_id);
+                    $p3 = \Drupal\paragraphs\Entity\Paragraph::load($p2->field_hero_remote_video->target_id);
+
+                    $fieldVideoByModelId = $p2->field_hero_remote_video->target_id;
+                    $media = \Drupal\media\Entity\Media::load($fieldVideoByModelId);
+                    $videoId = $media->field_media_oembed_video->value;
+
+                    $srtVideoId = str_replace(array('https://www.youtube.com/watch?v=','https://youtu.be/','https://www.youtube.com/','https://youtube.com/'), '', $videoId);
+                    $srtVideoId = preg_replace($pattern, '', $srtVideoId);
+
+                    if (isset($videoId) && !empty($videoId)) {
+                        $db->insert($table)->fields(
+                            array(
+                                'nid' => $fieldVideoByModelId,
+                                'name' => $videoId,
+                                'file_id' => $srtVideoId,
+                                'content_type' => $contentType,
+                                'file_type' => 'video',
+                            )
+                        )->execute();
+                    }
+                }
+
+                if ($id == 'inline_block:see_it_in_action_block') {
+                    $revisionId = $component["configuration"]["block_revision_id"];
+                    $c = \Drupal::entityTypeManager()->getStorage('block_content')->loadRevision($revisionId);
+                    $p = \Drupal\paragraphs\Entity\Paragraph::load($c->field_see_it_in_action_field->target_id);
+
+                    $fieldVideoByModelId = $p->field_videosiia->target_id;
+                    $media = \Drupal\media\Entity\Media::load($p->field_videosiia->target_id);
+                    $videoId = $media->field_media_oembed_video->value;
+
+                    $srtVideoId = str_replace(array('https://www.youtube.com/watch?v=','https://youtu.be/','https://www.youtube.com/','https://youtube.com/'), '', $videoId);
+                    $srtVideoId = preg_replace($pattern, '', $srtVideoId);
+
+                    if (isset($videoId) && !empty($videoId)) {
+                        $db->insert($table)->fields(
+                            array(
+                                'nid' => $fieldVideoByModelId,
+                                'name' => $videoId,
+                                'file_id' => $srtVideoId,
+                                'content_type' => $contentType,
+                                'file_type' => 'video',
+                            )
+                        )->execute();
+                    }
+                }
+
+                if ($id == 'inline_block:product_documents_block') {
+                    $revisionId = $component["configuration"]["block_revision_id"];
+                    $e = \Drupal::entityTypeManager()->getStorage('block_content')->loadRevision($revisionId);
+                    $p = \Drupal\paragraphs\Entity\Paragraph::load($e->field_product_documents_block->target_id);
+                    $p2 = \Drupal\paragraphs\Entity\Paragraph::load($p->field_document_cards_lb_pgh->target_id);
+                    $p3 = \Drupal\paragraphs\Entity\Paragraph::load($p2->field_documents->target_id);
+                    $media = \Drupal\media\Entity\Media::load($p3->field_image->target_id);
+                    $file = \Drupal\file\Entity\File::load($media->field_media_document->target_id)->getFileUri();
+
+                    $srtFile = str_replace(array('public://'), '', $file);
+
+                    if (isset($srtFile) && !empty($srtFile)) {
+                        $db->insert($table)->fields(
+                            array(
+                                'nid' => $media->field_media_document->target_id,
+                                'name' => $file,
+                                'file_id' => $srtFile,
+                                'content_type' => $contentType,
+                                'file_type' => 'pdf',
+                            )
+                        )->execute();
+                    }
+                }
+
+                if ($id == 'inline_block:product_specsheets_block') {
+                    $revisionId = $component["configuration"]["block_revision_id"];
+                    $c = \Drupal::entityTypeManager()->getStorage('block_content')->loadRevision($revisionId);
+                    $p = \Drupal\paragraphs\Entity\Paragraph::load($c->field_product_specsheets_block->target_id);
+
+                    foreach ($p->get('field_specsheets_lb_pgh')->getValue() as $file) {
+                        $fid = $file['target_id'];
+                        $p2 = \Drupal\paragraphs\Entity\Paragraph::load($fid);
+
+                        $media = \Drupal\media\Entity\Media::load($p2->field_excel_sheet->target_id);
+                        $filexlsx = \Drupal\file\Entity\File::load($media->field_media_document->target_id)->getFileUri();
+
+                        $srtFile = str_replace(array('public://'), '', $filexlsx);
+
+                        if (isset($srtFile) && !empty($srtFile)) {
+                            $db->insert($table)->fields(
+                                array(
+                                    'nid' => $media->field_media_document->target_id,
+                                    'name' => $filexlsx,
+                                    'file_id' => $srtFile,
+                                    'content_type' => $contentType,
+                                    'file_type' => 'xlsx',
+                                )
+                            )->execute();
+                        }
+                    }
+                }
+
+                if ($id == 'inline_block:featured_block') {
+                    $revisionId = $component["configuration"]["block_revision_id"];
+                    $c = \Drupal::entityTypeManager()->getStorage('block_content')->loadRevision($revisionId);
+                    $p = \Drupal\paragraphs\Entity\Paragraph::load($c->field_feature_field->target_id);
+                    foreach ($p->get('field_feature_gallery')->getValue() as $file) {
+                        $fid = $file['target_id'];
+                        $p2 = \Drupal\paragraphs\Entity\Paragraph::load($fid);
+
+                        foreach ($p2->field_buttoncontact->getValue() as $value) {
+                            $videoId = explode('&', $value['uri']);
+                            $videoId = $videoId[0];
+
+                            $srtVideoId = str_replace(array('https://www.youtube.com/watch?v=','https://youtu.be/','https://www.youtube.com/','https://youtube.com/'), '', $videoId);
+                            $srtVideoId = preg_replace($pattern, '', $srtVideoId);
+
+                            if (isset($videoId) && !empty($videoId)) {
+                                $db->insert($table)->fields(
+                                    array(
+                                        'nid' => $fid,
+                                        'name' => $videoId,
+                                        'file_id' => $srtVideoId,
+                                        'content_type' => $contentType,
+                                        'file_type' => 'video',
+                                    )
+                                )->execute();
+                            }
+                        }
+                    }
+                }
+
+                if ($id == 'inline_block:performance_options_block') {
+                    $revisionId = $component["configuration"]["block_revision_id"];
+                    $c = \Drupal::entityTypeManager()->getStorage('block_content')->loadRevision($revisionId);
+                    $media = \Drupal\media\Entity\Media::load($c->field_performance_filelb->target_id);
+
+                    $file = '';
+                    if (!empty($media->field_media_file->target_id)) {
+                        $file = \Drupal\file\Entity\File::load($media->field_media_file->target_id)->getFileUri();
+                        $srtFile = str_replace(array('public://'), '', $file);
+
+                        if (isset($srtFile) && !empty($srtFile)) {
+                            $db->insert($table)->fields(
+                                array(
+                                    'nid' => $media->field_media_file->target_id,
+                                    'name' => $file,
+                                    'file_id' => $srtFile,
+                                    'content_type' => $contentType,
+                                    'file_type' => 'pdf',
+                                )
+                            )->execute();
+                        }
+                    }
+                    if (!empty($media->field_media_document->target_id)) {
+                        $file = \Drupal\file\Entity\File::load($media->field_media_document->target_id)->getFileUri();
+                        $srtFile = str_replace(array('public://'), '', $file);
+
+                        if (isset($srtFile) && !empty($srtFile)) {
+                            $db->insert($table)->fields(
+                                array(
+                                    'nid' => $media->field_media_document->target_id,
+                                    'name' => $file,
+                                    'file_id' => $srtFile,
+                                    'content_type' => $contentType,
+                                    'file_type' => 'pdf',
+                                )
+                            )->execute();
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
